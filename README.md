@@ -12,6 +12,8 @@ Para a apresentação, veja o [mapeamento de DDD, Clean Architecture e padrões 
 
 Veja também o [registro da validação em clone limpo](docs/VALIDACAO-ENTREGA.md), com testes da entrega pelo GHCR, fluxo autenticado, observabilidade e Watch.
 
+A [revisão de código e validação mais recente](docs/REVISAO-CODIGO.md) registra as correções, os 27 testes unitários e os cenários de falha exercitados.
+
 ## Início rápido — executar e avaliar o projeto
 
 Você precisa apenas de **Git, Docker Desktop aberto e acesso à internet** para baixar imagens e dependências no primeiro build. Não precisa instalar Node, Python, MySQL, Kafka ou Keycloak na máquina. Referência validada: Docker Compose **5.3.1**, containers Linux amd64.
@@ -89,6 +91,18 @@ Deixe esse terminal aberto: o Compose inicia todos os serviços, inclusive o fro
 Abra http://localhost:5173. O frontend usa Vite no container de desenvolvimento e Nginx para servir os arquivos compilados no modo normal. O navegador acessa as APIs nas portas 3001/8004 e o Keycloak na 8080.
 
 Para executar imagens já publicadas **sem build**, siga [CI/CD e Compose de entrega](docs/CI-CD.md). Essa opção exige escolher o SHA de uma publicação concluída. O início rápido acima não exige escolher uma versão no registry.
+
+## Testar o código sem instalar Node ou Python no host
+
+Na pasta do projeto, com `.env` configurado, execute:
+
+```powershell
+docker compose -f compose.yaml -f compose.dev.yaml run --rm --build --no-deps -e OTEL_EXPORTER_OTLP_ENDPOINT= api npm test
+docker compose run --rm --build --no-deps -v ./notifications/tests:/app/tests:ro notifications python -m unittest discover -s /app/tests -v
+docker compose build web
+```
+
+São 9 testes TypeScript e 18 Python. Os testes usam repositórios/serviços simulados e não precisam de MySQL ou Kafka em execução. O teste do verificador TypeScript sobe apenas um servidor JWKS temporário dentro do próprio container. O build da interface verifica os tipos e gera os arquivos de distribuição. O [CI/CD](docs/CI-CD.md) também executa esses testes e builds automaticamente.
 
 ## Histórico de construção
 
