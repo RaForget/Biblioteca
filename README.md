@@ -8,6 +8,10 @@ A entrega contínua publica imagens versionadas no GHCR após o CI passar na `ma
 
 Para testar as APIs, veja [rotas, autenticação, entrypoints e exemplos](docs/APIS.md) e importe a [coleção Postman](docs/biblioteca.postman_collection.json).
 
+Para a apresentação, veja o [mapeamento de DDD, Clean Architecture e padrões aos arquivos](docs/DDD-E-PADROES.md), incluindo os limites do que foi implementado.
+
+Veja também o [registro da validação em clone limpo](docs/VALIDACAO-ENTREGA.md), com testes da entrega pelo GHCR, fluxo autenticado, observabilidade e Watch.
+
 **Atualização da etapa 9:** empréstimos e consulta HTTP de notificações agora exigem login pelo Keycloak. Prefira a interface para testar. Os exemplos antigos de POST sem token ou enviando `readerName` representam etapas anteriores e não são mais aceitos. O catálogo continua público.
 
 ## Inicialização da etapa atual
