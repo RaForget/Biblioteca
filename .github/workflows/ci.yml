@@ -1,0 +1,86 @@
+name: CI Biblioteca
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+  web:
+    name: Frontend TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  notifications:
+    name: Notificações Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: notifications
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: notifications/requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: python -m pip check
+      - run: python -m unittest discover -s tests -v
+      - name: Verificar sintaxe de todos os módulos
+        run: python -m compileall -q src
+
+  containers:
+    name: Configuração e imagens Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Preparar configuração local de demonstração
+        run: cp .env.example .env
+      - name: Validar Compose e configuração de desenvolvimento
+        run: |
+          docker compose config --quiet
+          docker compose -f compose.yaml -f compose.dev.yaml config --quiet
+      - name: Construir imagens da API e do serviço Python
+        run: docker compose build api notifications

@@ -1,0 +1,27 @@
+# Complemento explícito: a execução normal continua usando a imagem compilada.
+services:
+  api:
+    image: biblioteca-api:dev
+    build:
+      context: ./api
+      target: development
+    develop:
+      watch:
+        - action: sync
+          path: ./api/src
+          target: /app/src
+          initial_sync: true
+        - action: sync
+          path: ./api/tests
+          target: /app/tests
+          initial_sync: true
+        - action: sync+restart
+          path: ./api/tsconfig.json
+          target: /app/tsconfig.json
+          initial_sync: true
+        - action: rebuild
+          path: ./api/package.json
+        - action: rebuild
+          path: ./api/package-lock.json
+        - action: rebuild
+          path: ./api/Dockerfile

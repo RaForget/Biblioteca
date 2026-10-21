@@ -1,0 +1,286 @@
+name: biblioteca
+
+services:
+  loki-init:
+    image: busybox:1.37
+    user: "0:0"
+    command: ["chown", "10001:10001", "/loki"]
+    volumes:
+      - loki_data:/loki
+    restart: "no"
+
+  loki:
+    image: grafana/loki:3.5.7
+    command: ["-config.file=/etc/loki/config.yaml"]
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - loki_data:/loki
+      - ./infrastructure/observability/loki.yaml:/etc/loki/config.yaml:ro
+    depends_on:
+      loki-init:
+        condition: service_completed_successfully
+
+  prometheus:
+    image: prom/prometheus:v3.7.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=24h"]
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./infrastructure/observability/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+
+  tempo-init:
+    image: busybox:1.37
+    user: "0:0"
+    command: ["chown", "10001:10001", "/var/tempo"]
+    volumes:
+      - tempo_data:/var/tempo
+    restart: "no"
+
+  tempo:
+    image: grafana/tempo:2.9.0
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./infrastructure/observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "127.0.0.1:3200:3200"
+    depends_on:
+      tempo-init:
+        condition: service_completed_successfully
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.137.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infrastructure/observability/collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:13133:13133"
+    depends_on:
+      tempo:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:12.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: grafana_local
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "127.0.0.1:3333:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/tempo.yaml:ro
+      - ./infrastructure/observability/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/biblioteca.yaml:ro
+      - ./infrastructure/observability/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      tempo:
+        condition: service_started
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.0
+    command: ["start-dev", "--import-realm"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin_local
+      KC_HOSTNAME: http://localhost:8080
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./infrastructure/keycloak:/opt/keycloak/data/import:ro
+      - ./infrastructure/keycloak-themes/biblioteca:/opt/keycloak/themes/biblioteca:ro
+    healthcheck:
+      test: ["CMD", "bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3; read -r line <&3; [[ $$line == *200* ]]"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  mysql:
+    image: mysql:8.4
+    ports:
+      - "127.0.0.1:3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure o arquivo .env}
+      MYSQL_DATABASE: biblioteca
+      MYSQL_USER: biblioteca_app
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Configure o arquivo .env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  api-db-init:
+    image: biblioteca-api:local
+    build: ./api
+    command: ["node", "dist/infrastructure/database/setup.js"]
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Configure o arquivo .env}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: biblioteca-api:local
+    build: ./api
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-3001}:3001"
+    environment:
+      API_HOST: 0.0.0.0
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Configure o arquivo .env}
+      KAFKA_BROKERS: kafka:19092
+      KEYCLOAK_ISSUER: http://localhost:8080/realms/biblioteca
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/biblioteca/protocol/openid-connect/certs
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    depends_on:
+      api-db-init:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: on-failure
+    init: true
+    stop_grace_period: 15s
+
+  notifications-db-init:
+    image: mysql:8.4
+    environment:
+      MYSQL_PWD: ${MYSQL_ROOT_PASSWORD:?Configure o arquivo .env}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./infrastructure/mysql/notifications.sql:/setup.sql:ro
+    entrypoint: ["sh", "-c", "mysql -h mysql -u root < /setup.sql"]
+    restart: "no"
+
+  notifications:
+    build: ./notifications
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      NOTIFICATIONS_MYSQL_PASSWORD: notifications_local
+      KAFKA_BROKERS: kafka:19092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    depends_on:
+      notifications-db-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+    restart: on-failure
+    stop_grace_period: 15s
+
+  notifications-api:
+    build: ./notifications
+    command: ["python", "-m", "uvicorn", "notifications.http_api:app", "--host", "0.0.0.0", "--port", "8004"]
+    ports:
+      - "127.0.0.1:8004:8004"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      NOTIFICATIONS_MYSQL_PASSWORD: notifications_local
+      KEYCLOAK_ISSUER: http://localhost:8080/realms/biblioteca
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/biblioteca/protocol/openid-connect/certs
+    depends_on:
+      notifications-db-init:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: on-failure
+
+  kafka-volume-init:
+    image: apache/kafka:4.1.2
+    user: "0:0"
+    entrypoint: ["chown", "1000:1000", "/tmp/kraft-combined-logs"]
+    volumes:
+      - kafka_data:/tmp/kraft-combined-logs
+    restart: "no"
+
+  kafka:
+    image: apache/kafka:4.1.2
+    depends_on:
+      kafka-volume-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:19092,EXTERNAL://:9092,CONTROLLER://:29093
+      # Containers usam kafka:19092; aplicações no Windows usam localhost:9092.
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      CLUSTER_ID: 4L6g3nShT-eMCtK--X86sw
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    volumes:
+      - kafka_data:/tmp/kraft-combined-logs
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --list > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 18
+      start_period: 30s
+
+  kafka-init:
+    image: apache/kafka:4.1.2
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/opt/kafka/bin/kafka-topics.sh"]
+    command: ["--bootstrap-server", "kafka:19092", "--create", "--if-not-exists", "--topic", "loan.created", "--partitions", "1", "--replication-factor", "1"]
+    restart: "no"
+
+  kafka-ui:
+    image: ghcr.io/kafbat/kafka-ui:v1.5.0
+    ports:
+      - "127.0.0.1:8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: biblioteca
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+
+volumes:
+  loki_data:
+  prometheus_data:
+  tempo_data:
+  grafana_data:
+  keycloak_data:
+  mysql_data:
+  kafka_data:

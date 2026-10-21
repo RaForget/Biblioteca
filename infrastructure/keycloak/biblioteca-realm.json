@@ -1,0 +1,39 @@
+{
+  "realm": "biblioteca",
+  "enabled": true,
+  "displayName": "Biblioteca",
+  "loginTheme": "biblioteca",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["pt-BR"],
+  "defaultLocale": "pt-BR",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "roles": { "realm": [{ "name": "leitor" }, { "name": "bibliotecario" }] },
+  "clients": [{
+    "clientId": "biblioteca-web",
+    "name": "Biblioteca Web",
+    "protocol": "openid-connect",
+    "publicClient": true,
+    "standardFlowEnabled": true,
+    "directAccessGrantsEnabled": false,
+    "redirectUris": ["http://localhost:5173/*", "http://127.0.0.1:5173/*"],
+    "webOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+    "attributes": {
+      "pkce.code.challenge.method": "S256",
+      "post.logout.redirect.uris": "http://localhost:5173/*##http://127.0.0.1:5173/*"
+    },
+    "protocolMappers": [{
+      "name": "biblioteca-api-audience",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "config": { "included.custom.audience": "biblioteca-api", "access.token.claim": "true", "id.token.claim": "false" }
+    }]
+  }],
+  "users": [
+    { "username": "leitor", "firstName": "Rafael", "lastName": "Leitor", "email": "leitor@biblioteca.local", "emailVerified": true, "enabled": true, "realmRoles": ["leitor"], "credentials": [{ "type": "password", "value": "leitor123", "temporary": false }] },
+    { "username": "ana", "firstName": "Ana", "lastName": "Leitora", "email": "ana@biblioteca.local", "emailVerified": true, "enabled": true, "realmRoles": ["leitor"], "credentials": [{ "type": "password", "value": "ana123", "temporary": false }] },
+    { "username": "bibliotecario", "firstName": "Gestor", "lastName": "Biblioteca", "email": "gestor@biblioteca.local", "emailVerified": true, "enabled": true, "realmRoles": ["leitor", "bibliotecario"], "credentials": [{ "type": "password", "value": "biblioteca123", "temporary": false }] },
+    { "username": "visitante", "firstName": "Visitante", "lastName": "Teste", "email": "visitante@biblioteca.local", "emailVerified": true, "enabled": true, "realmRoles": [], "credentials": [{ "type": "password", "value": "visitante123", "temporary": false }] }
+  ]
+}
