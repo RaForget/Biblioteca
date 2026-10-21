@@ -2,6 +2,8 @@
 
 Projeto próprio de empréstimo de livros. TypeScript e Python se comunicam por HTTP e eventos Kafka. O material Pizza Express permanece somente como referência da disciplina.
 
+Veja os [diagramas C4 e o percurso de uma chamada](docs/ARQUITETURA.md): contexto, containers, componentes da API e sequência do empréstimo.
+
 **Atualização da etapa 9:** empréstimos e consulta HTTP de notificações agora exigem login pelo Keycloak. Prefira a interface para testar. Os exemplos antigos de POST sem token ou enviando `readerName` representam etapas anteriores e não são mais aceitos. O catálogo continua público.
 
 ## Inicialização da etapa atual
