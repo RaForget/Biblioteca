@@ -48,8 +48,11 @@ class ConsumerTests(unittest.TestCase):
     def test_failed_rejection_does_not_commit_offset(self):
         repository, consumer = Mock(), Mock()
         repository.reject.side_effect = RuntimeError("database unavailable")
-        with self.assertRaises(RuntimeError):
-            process_message(consumer, self.message({}), RegisterNotification(repository), repository)
+        with patch("notifications.main.record_notification") as record:
+            with self.assertRaises(RuntimeError):
+                process_message(consumer, self.message({}), RegisterNotification(repository), repository)
+            self.assertEqual(record.call_args.args[0], "error")
+            self.assertEqual(record.call_count, 1)
         consumer.commit.assert_not_called()
 
     def test_excessively_nested_json_is_rejected_without_stopping_consumer(self):

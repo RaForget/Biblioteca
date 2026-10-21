@@ -30,8 +30,13 @@ def process_message(consumer, message, use_case, repository):
             event = json.loads(message.value())
             notification, created = use_case.execute(event)
         except (json.JSONDecodeError, UnicodeDecodeError, InvalidEvent, TypeError, RecursionError) as error:
-            repository.reject(message.topic(), message.partition(), message.offset(),
-                (message.value() or b"").decode("utf-8", errors="replace"), str(error))
+            try:
+                repository.reject(message.topic(), message.partition(), message.offset(),
+                    (message.value() or b"").decode("utf-8", errors="replace"), str(error))
+            except Exception:
+                record_notification("error", time.perf_counter() - started)
+                logger.error("Falha ao registrar evento rejeitado traceId=%s", trace_id)
+                raise
             span.set_status(trace.StatusCode.ERROR, "Evento inválido")
             logger.warning("Evento inválido registrado: partition=%s offset=%s traceId=%s",
                 message.partition(), message.offset(), trace_id)
