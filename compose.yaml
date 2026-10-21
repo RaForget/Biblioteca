@@ -1,6 +1,19 @@
 name: biblioteca
 
 services:
+  web:
+    image: biblioteca-web:local
+    build:
+      context: ./web
+      target: runtime
+    ports:
+      - "127.0.0.1:5173:5173"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:5173/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   loki-init:
     image: busybox:1.37
     user: "0:0"

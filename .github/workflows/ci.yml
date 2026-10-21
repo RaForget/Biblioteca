@@ -88,5 +88,5 @@ jobs:
         run: |
           docker compose config --quiet
           docker compose -f compose.yaml -f compose.dev.yaml config --quiet
-      - name: Construir imagens da API e do serviço Python
-        run: docker compose build api notifications
+      - name: Construir imagens da API, Python e frontend
+        run: docker compose build api notifications web

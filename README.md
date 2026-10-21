@@ -6,23 +6,31 @@ Projeto próprio de empréstimo de livros. TypeScript e Python se comunicam por 
 
 ## Inicialização da etapa atual
 
-Encerre qualquer `npm run dev` antigo do **backend** com `Ctrl+C` para liberar a porta 3001. Na pasta `biblioteca`:
+Pré-requisitos: Git e Docker Desktop aberto, com Docker Compose 5.3.1 ou compatível com `initial_sync`. Não é necessário instalar Node, Python ou MySQL na máquina. Encerre qualquer `npm run dev` antigo do backend e do frontend com `Ctrl+C` para liberar as portas 3001 e 5173.
+
+Na primeira execução:
+
+```powershell
+git clone https://github.com/RaForget/Biblioteca.git
+cd Biblioteca
+Copy-Item .env.example .env
+```
+
+Se já tiver o projeto, entre na pasta `biblioteca` e mantenha seu `.env` existente. Para desenvolver:
 
 ```powershell
 docker compose -f compose.yaml -f compose.dev.yaml up --build --watch
 ```
 
-Deixe esse terminal aberto: o Compose inicia os serviços, prepara as tabelas/livros e observa alterações na API TypeScript. Para conferir os containers, execute `docker compose ps` em outro terminal. `Ctrl+C` encerra a sessão e para os containers, preservando os volumes.
+Deixe esse terminal aberto: o Compose inicia todos os serviços, inclusive o frontend, prepara as tabelas/livros e observa alterações na API e na interface TypeScript. Para conferir os containers, execute `docker compose ps` em outro terminal. `Ctrl+C` encerra a sessão e para os containers, preservando os volumes.
 
-Em outro terminal, inicie somente a interface:
+Para apenas executar a versão compilada, sem Watch:
 
 ```powershell
-cd "C:\Users\rafac\OneDrive\Desktop\Pizza Express\biblioteca\web"
-npm ci
-npm run dev
+docker compose up -d --build --wait
 ```
 
-Use `npm ci` quando precisar instalar/atualizar as dependências, não em toda inicialização. Abra http://localhost:5173. As etapas abaixo registram a evolução; as instruções antigas de executar a API localmente são opcionais e exigem parar primeiro o container `api`.
+Abra http://localhost:5173. O frontend usa Vite no container de desenvolvimento e Nginx para servir os arquivos compilados no modo normal. O navegador continua acessando diretamente as APIs nas portas 3001/8004 e o Keycloak na 8080, mantendo as origens de autenticação existentes. As etapas abaixo registram a evolução; as instruções antigas de executar serviços com `npm run dev` no host são opcionais e exigem parar primeiro o container correspondente (`api` ou `web`).
 
 ## Etapa 1: MySQL com Docker Compose
 

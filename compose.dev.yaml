@@ -1,5 +1,28 @@
 # Complemento explícito: a execução normal continua usando a imagem compilada.
 services:
+  web:
+    image: biblioteca-web:dev
+    build:
+      context: ./web
+      target: development
+    develop:
+      watch:
+        - action: sync
+          path: ./web/src
+          target: /app/src
+          initial_sync: true
+        - action: sync
+          path: ./web/index.html
+          target: /app/index.html
+          initial_sync: true
+        - action: rebuild
+          path: ./web/tsconfig.json
+        - action: rebuild
+          path: ./web/package.json
+        - action: rebuild
+          path: ./web/package-lock.json
+        - action: rebuild
+          path: ./web/Dockerfile
   api:
     image: biblioteca-api:dev
     build:
