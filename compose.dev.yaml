@@ -5,6 +5,8 @@ services:
     build:
       context: ./web
       target: development
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173/').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
     develop:
       watch:
         - action: sync

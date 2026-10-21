@@ -6,6 +6,8 @@ Veja os [diagramas C4 e o percurso de uma chamada](docs/ARQUITETURA.md): context
 
 A entrega contínua publica imagens versionadas no GHCR após o CI passar na `main`. Veja [CI/CD e execução sem build](docs/CI-CD.md), incluindo o roteiro para demonstrar o processo e as permissões dos pacotes.
 
+Para testar as APIs, veja [rotas, autenticação, entrypoints e exemplos](docs/APIS.md) e importe a [coleção Postman](docs/biblioteca.postman_collection.json).
+
 **Atualização da etapa 9:** empréstimos e consulta HTTP de notificações agora exigem login pelo Keycloak. Prefira a interface para testar. Os exemplos antigos de POST sem token ou enviando `readerName` representam etapas anteriores e não são mais aceitos. O catálogo continua público.
 
 ## Inicialização da etapa atual
