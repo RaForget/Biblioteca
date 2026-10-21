@@ -45,3 +45,22 @@ test('falha de publicação informa o id já salvo', async () => {
   });
   assert.equal(saved.length, 1);
 });
+
+test('contrato publicado usa identidade normalizada e somente depois de salvar', async () => {
+  const order: string[] = [];
+  const now = new Date('2026-10-21T12:00:00.123Z');
+  const repository: LibraryRepository = {
+    listBooks: async () => [], listLoans: async () => [],
+    findBook: async () => ({ id: 'book', title: 'Livro', author: 'Autor' }),
+    saveLoan: async loan => { assert.equal(loan.readerName, 'Leitor'); order.push('save'); },
+  };
+  const useCase = new RequestLoan(repository, () => 'loan-id', () => now, {
+    publish: async event => {
+      order.push('publish');
+      assert.deepEqual(event, { eventId: 'loan-id', eventType: 'loan.created', version: 1,
+        occurredAt: now.toISOString(), loanId: 'loan-id', bookId: 'book', readerName: 'Leitor', readerId: 'reader' });
+    },
+  });
+  await useCase.execute({ bookId: 'book', readerName: '  Leitor  ', readerId: 'reader' });
+  assert.deepEqual(order, ['save', 'publish']);
+});

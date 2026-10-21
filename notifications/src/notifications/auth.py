@@ -19,7 +19,9 @@ def require_reader(credentials: HTTPAuthorizationCredentials | None = Depends(be
             raise jwt.InvalidTokenError("Identidade ausente")
     except (jwt.PyJWTError, OSError, ValueError):
         raise HTTPException(401, "Token inválido ou expirado.", headers={"WWW-Authenticate": "Bearer"})
-    roles = claims.get("realm_access", {}).get("roles", [])
+    access = claims.get("realm_access")
+    raw_roles = access.get("roles") if isinstance(access, dict) else None
+    roles = [role for role in raw_roles if isinstance(role, str)] if isinstance(raw_roles, list) else []
     if "leitor" not in roles:
         raise HTTPException(403, "Seu usuário não tem o papel de leitor.")
     return {"id": claims["sub"], "roles": roles}

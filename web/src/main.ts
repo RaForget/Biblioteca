@@ -41,8 +41,16 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     response = await fetch(url, { ...options, headers, signal: AbortSignal.timeout(15000) });
   }
   catch { throw new ApiError(options?.method === 'POST' ? 'Não foi possível confirmar o resultado. Consulte a lista antes de tentar novamente.' : 'Não foi possível conectar ao serviço. Verifique se ele está em execução.'); }
-  const data = await response.json();
-  if (!response.ok) throw new ApiError(data.message ?? data.detail ?? 'Não foi possível concluir a operação.', data.loanId);
+  let data: unknown;
+  try { data = await response.json(); }
+  catch { throw new ApiError(options?.method === 'POST'
+    ? 'O serviço retornou uma resposta inválida. Consulte a lista antes de tentar novamente.'
+    : 'O serviço retornou uma resposta inválida. Tente atualizar a lista.'); }
+  if (!response.ok) {
+    const failure = data && typeof data === 'object' ? data as Record<string, unknown> : {};
+    const text = typeof failure.message === 'string' ? failure.message : typeof failure.detail === 'string' ? failure.detail : 'Não foi possível concluir a operação.';
+    throw new ApiError(text, typeof failure.loanId === 'string' ? failure.loanId : undefined);
+  }
   return data as T;
 }
 function toast(text: string) { clearTimeout(toastTimer); message('toast', text); toastTimer = setTimeout(() => message('toast', ''), 6500); }
@@ -61,11 +69,13 @@ async function loadBooks() {
 
 async function loadActivity() {
   if (!auth.authenticated || !auth.hasRealmRole('leitor')) {
+    message('activity-error', '');
     document.getElementById('loans')!.textContent = auth.authenticated ? 'Seu usuário não tem permissão de leitor. Entre com outra conta para solicitar empréstimos.' : 'Entre na sua conta para consultar seus empréstimos e notificações.';
     document.getElementById('updated')!.textContent = '';
     return;
   }
   if (loading) return;
+  const sessionId = auth.subject;
   loading = true;
   const refresh = document.querySelector<HTMLButtonElement>('#refresh')!;
   refresh.disabled = true;
@@ -73,6 +83,8 @@ async function loadActivity() {
     const [loansResult, notificationsResult] = await Promise.allSettled([
       request<Loan[]>(`${LIBRARY_API}/loans`), request<Notification[]>(`${NOTIFICATIONS_API}/notifications`),
     ]);
+    // Uma consulta iniciada antes da perda de sessão não deve repor dados privados na tela.
+    if (!auth.authenticated || auth.subject !== sessionId) return;
     if (loansResult.status === 'rejected') throw loansResult.reason;
     const notifications = notificationsResult.status === 'fulfilled' ? notificationsResult.value : [];
     const loans = loansResult.value;
@@ -84,14 +96,16 @@ async function loadActivity() {
       return `<article class="loan-row"><span class="loan-icon" aria-hidden="true">↗</span><div class="loan-main"><h3>${escape(book?.title ?? 'Livro emprestado')}</h3><p>${escape(loan.readerName)} <span>·</span> ${date(loan.createdAt)}</p><details><summary>Identificador do empréstimo</summary><code>${escape(loan.id)}</code></details></div><div class="notification"><span class="badge ${notification ? 'confirmed' : 'pending'}">${notification ? '✓ Notificação registrada' : notificationsResult.status === 'rejected' ? 'Consulta indisponível' : '◷ Aguardando notificação'}</span><p>${notification ? escape(notification.message) : 'O empréstimo já foi registrado.'}</p></div></article>`;
     }).join('') : '<div class="empty"><span aria-hidden="true">↗</span><h3>Sua próxima leitura espera por você</h3><p>Escolha um livro no catálogo para registrar o primeiro empréstimo.</p></div>';
     document.getElementById('updated')!.textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR')} · atualização automática a cada 3 segundos`;
-  } catch (error) { message('activity-error', (error as Error).message); }
+  } catch (error) {
+    if (auth.authenticated && auth.subject === sessionId) message('activity-error', (error as Error).message);
+  }
   finally { loading = false; refresh.disabled = false; }
 }
 
 document.getElementById('books')!.addEventListener('click', event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-book]');
   if (!button) return;
-  if (!auth.authenticated) { void login(); return; }
+  if (!auth.authenticated) { void login().catch(() => toast('Não foi possível abrir o serviço de login.')); return; }
   if (!auth.hasRealmRole('leitor')) { toast('Seu usuário não tem o papel de leitor.'); return; }
   selected = books.find(book => book.id === button.dataset.book);
   if (!selected) return;
@@ -117,13 +131,22 @@ form.addEventListener('submit', async event => {
 });
 document.getElementById('refresh')!.addEventListener('click', () => { void loadBooks().then(loadActivity); });
 const sessionButton = document.querySelector<HTMLButtonElement>('#session-button')!;
+function renderSession() {
+  document.getElementById('session-name')!.textContent = auth.authenticated ? `${readerName()}${auth.hasRealmRole('bibliotecario') ? ' · Bibliotecário' : ''}` : 'Catálogo público';
+  sessionButton.textContent = auth.authenticated ? 'Sair' : 'Entrar';
+}
+auth.onAuthLogout = () => {
+  renderSession();
+  dialog.close();
+  form.reset();
+  void loadActivity();
+};
 sessionButton.addEventListener('click', () => {
   void (auth.authenticated ? logout() : login()).catch(() => toast('Não foi possível abrir o serviço de login.'));
 });
 try {
   await initializeAuth();
-  document.getElementById('session-name')!.textContent = auth.authenticated ? `${readerName()}${auth.hasRealmRole('bibliotecario') ? ' · Bibliotecário' : ''}` : 'Catálogo público';
-  sessionButton.textContent = auth.authenticated ? 'Sair' : 'Entrar';
+  renderSession();
 } catch {
   document.getElementById('session-name')!.textContent = 'Login indisponível';
   toast('Não foi possível conectar ao Keycloak. O catálogo continua público.');

@@ -13,6 +13,7 @@ def connect_database():
         password=os.environ["NOTIFICATIONS_MYSQL_PASSWORD"],
         database="notifications",
         connection_timeout=5,
+        time_zone="+00:00",
     )
 
 

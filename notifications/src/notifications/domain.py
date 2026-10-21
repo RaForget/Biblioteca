@@ -32,7 +32,12 @@ class Notification:
             reader_id = str(UUID(event["readerId"])) if event.get("readerId") is not None else None
             if occurred_at.tzinfo is None:
                 raise ValueError("Data sem fuso horário.")
-        except (KeyError, TypeError, ValueError, AttributeError) as error:
+            occurred_at = occurred_at.astimezone(timezone.utc)
+            if occurred_at.year < 1000:
+                raise ValueError("Data fora do intervalo suportado.")
+            # O contrato persiste milissegundos; evita arredondamento além do ano 9999.
+            occurred_at = occurred_at.replace(microsecond=(occurred_at.microsecond // 1000) * 1000)
+        except (KeyError, TypeError, ValueError, AttributeError, OverflowError) as error:
             raise InvalidEvent("Campos do evento inválidos.") from error
         name = name.strip()
-        return cls(*ids, name, f"{name}, seu empréstimo foi registrado.", occurred_at.astimezone(timezone.utc), reader_id)
+        return cls(*ids, name, f"{name}, seu empréstimo foi registrado.", occurred_at, reader_id)

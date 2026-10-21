@@ -55,3 +55,18 @@ class NotificationTests(unittest.TestCase):
                 raise RuntimeError("Banco indisponível")
         with self.assertRaises(RuntimeError):
             RegisterNotification(BrokenRepository()).execute(event())
+
+    def test_invalid_dates_do_not_reach_repository(self):
+        for date in ["9999-12-31T23:59:59-01:00", "0001-01-01T00:00:00Z",
+                     "1000-01-01T00:00:00+01:00", "2026-10-21T12:00:00"]:
+            with self.subTest(date=date):
+                repository = MemoryRepository()
+                payload = dict(event(), occurredAt=date)
+                with self.assertRaises(InvalidEvent):
+                    RegisterNotification(repository).execute(payload)
+                self.assertEqual(repository.items, {})
+
+    def test_date_is_normalized_to_utc_milliseconds(self):
+        notification, _ = RegisterNotification(MemoryRepository()).execute(
+            dict(event(), occurredAt="2026-10-21T15:00:00.123456+03:00"))
+        self.assertEqual(notification.occurred_at.isoformat(), "2026-10-21T12:00:00.123000+00:00")
