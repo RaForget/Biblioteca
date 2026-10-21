@@ -29,7 +29,7 @@ def process_message(consumer, message, use_case, repository):
         try:
             event = json.loads(message.value())
             notification, created = use_case.execute(event)
-        except (json.JSONDecodeError, UnicodeDecodeError, InvalidEvent, TypeError) as error:
+        except (json.JSONDecodeError, UnicodeDecodeError, InvalidEvent, TypeError, RecursionError) as error:
             repository.reject(message.topic(), message.partition(), message.offset(),
                 (message.value() or b"").decode("utf-8", errors="replace"), str(error))
             span.set_status(trace.StatusCode.ERROR, "Evento inválido")

@@ -52,6 +52,15 @@ class ConsumerTests(unittest.TestCase):
             process_message(consumer, self.message({}), RegisterNotification(repository), repository)
         consumer.commit.assert_not_called()
 
+    def test_excessively_nested_json_is_rejected_without_stopping_consumer(self):
+        repository, consumer = Mock(), Mock()
+        message = self.message({})
+        message.value.return_value = b"[" * 10000 + b"0" + b"]" * 10000
+        process_message(consumer, message, RegisterNotification(repository), repository)
+        repository.reject.assert_called_once()
+        repository.save.assert_not_called()
+        consumer.commit.assert_called_once_with(message=message, asynchronous=False)
+
     def test_commit_failure_does_not_record_success(self):
         repository, consumer = Mock(), Mock()
         repository.save.return_value = True
