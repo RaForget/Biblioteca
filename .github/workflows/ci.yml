@@ -76,6 +76,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+      - name: Instalar Docker Compose compatível com Watch
+        uses: docker/setup-compose-action@v2
+        with:
+          version: v5.3.1
+      - name: Mostrar versão do Compose
+        run: docker compose version
       - name: Preparar configuração local de demonstração
         run: cp .env.example .env
       - name: Validar Compose e configuração de desenvolvimento

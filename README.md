@@ -4,16 +4,17 @@ Projeto próprio de empréstimo de livros. TypeScript e Python se comunicam por 
 
 **Atualização da etapa 9:** empréstimos e consulta HTTP de notificações agora exigem login pelo Keycloak. Prefira a interface para testar. Os exemplos antigos de POST sem token ou enviando `readerName` representam etapas anteriores e não são mais aceitos. O catálogo continua público.
 
-## Inicialização atual (a partir da etapa 7)
+## Inicialização da etapa atual
 
 Encerre qualquer `npm run dev` antigo do **backend** com `Ctrl+C` para liberar a porta 3001. Na pasta `biblioteca`:
 
 ```powershell
-docker compose up -d --build --wait
-docker compose ps
+docker compose -f compose.yaml -f compose.dev.yaml up --build --watch
 ```
 
-Agora o Compose inicia também a API TypeScript e prepara suas tabelas/livros. Em outro terminal, inicie somente a interface:
+Deixe esse terminal aberto: o Compose inicia os serviços, prepara as tabelas/livros e observa alterações na API TypeScript. Para conferir os containers, execute `docker compose ps` em outro terminal. `Ctrl+C` encerra a sessão e para os containers, preservando os volumes.
+
+Em outro terminal, inicie somente a interface:
 
 ```powershell
 cd "C:\Users\rafac\OneDrive\Desktop\Pizza Express\biblioteca\web"
