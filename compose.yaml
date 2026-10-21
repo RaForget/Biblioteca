@@ -81,6 +81,9 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: grafana_local
       GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DATABASE_WAL: "true"
+      GF_DATABASE_QUERY_RETRIES: "10"
+      GF_DATABASE_TRANSACTION_RETRIES: "10"
     ports:
       - "127.0.0.1:3333:3000"
     volumes:
@@ -91,6 +94,13 @@ services:
     depends_on:
       tempo:
         condition: service_started
+
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.0
