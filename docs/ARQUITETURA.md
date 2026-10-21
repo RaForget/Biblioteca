@@ -142,7 +142,7 @@ sequenceDiagram
     Pub-->>UC: Publicação concluída
     UC-->>HTTP: Empréstimo criado
     HTTP-->>Web: 201 + empréstimo + X-Trace-Id
-    Note over Kafka,Python: Consumo assíncrono; pode começar antes ou depois da resposta HTTP
+    Note over Kafka,Python: Consumo assíncrono. Pode começar antes ou depois da resposta HTTP
     Python->>Kafka: Lê evento no consumer group
     Python->>Python: Valida contrato e cria notificação
     Python->>NDB: Grava com deduplicação por eventId
