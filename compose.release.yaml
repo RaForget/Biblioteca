@@ -1,0 +1,18 @@
+# Use com compose.yaml e a tag de um job CD concluído com sucesso.
+# Não combine este arquivo com compose.dev.yaml.
+services:
+  api:
+    image: ${IMAGE_REGISTRY:-ghcr.io/raforget/biblioteca}/api:${IMAGE_TAG:?Defina IMAGE_TAG com o SHA publicado pelo CD}
+    build: !reset null
+  api-db-init:
+    image: ${IMAGE_REGISTRY:-ghcr.io/raforget/biblioteca}/api:${IMAGE_TAG:?Defina IMAGE_TAG com o SHA publicado pelo CD}
+    build: !reset null
+  notifications:
+    image: ${IMAGE_REGISTRY:-ghcr.io/raforget/biblioteca}/notifications:${IMAGE_TAG:?Defina IMAGE_TAG com o SHA publicado pelo CD}
+    build: !reset null
+  notifications-api:
+    image: ${IMAGE_REGISTRY:-ghcr.io/raforget/biblioteca}/notifications:${IMAGE_TAG:?Defina IMAGE_TAG com o SHA publicado pelo CD}
+    build: !reset null
+  web:
+    image: ${IMAGE_REGISTRY:-ghcr.io/raforget/biblioteca}/web:${IMAGE_TAG:?Defina IMAGE_TAG com o SHA publicado pelo CD}
+    build: !reset null

@@ -4,6 +4,8 @@ Projeto próprio de empréstimo de livros. TypeScript e Python se comunicam por 
 
 Veja os [diagramas C4 e o percurso de uma chamada](docs/ARQUITETURA.md): contexto, containers, componentes da API e sequência do empréstimo.
 
+A entrega contínua publica imagens versionadas no GHCR após o CI passar na `main`. Veja [CI/CD e execução sem build](docs/CI-CD.md), incluindo o roteiro para demonstrar o processo e as permissões dos pacotes.
+
 **Atualização da etapa 9:** empréstimos e consulta HTTP de notificações agora exigem login pelo Keycloak. Prefira a interface para testar. Os exemplos antigos de POST sem token ou enviando `readerName` representam etapas anteriores e não são mais aceitos. O catálogo continua público.
 
 ## Inicialização da etapa atual
@@ -707,11 +709,11 @@ O cache acelera downloads; `npm ci` continua instalando a partir do lockfile. Os
 Esta configuração considera **o conteúdo da pasta `biblioteca` como a raiz do repositório Git**. Ao clonar, `api`, `web`, `notifications` e `.github` devem estar diretamente na raiz. Se enviar a pasta pai inteira, o GitHub não encontrará este workflow no local esperado.
 
 1. Crie um repositório no GitHub e envie o conteúdo de `biblioteca`, incluindo os dois `package-lock.json` e `.github`. O `.gitignore` já exclui `.env`, dependências e builds locais.
-2. Abra a aba **Actions** do repositório e escolha **CI Biblioteca**.
+2. Abra a aba **Actions** do repositório e escolha **CI/CD Biblioteca**.
 3. Abra a execução para ver os quatro jobs. Clique em um job e depois no passo para ler sua saída. Um comando com erro deixa o job vermelho.
 4. Para executar novamente sem alterar código, use **Run workflow** na aba Actions (quando o arquivo estiver na branch padrão).
 
-Não são necessários secrets para esse workflow: o job Docker usa `.env.example` com valores locais de demonstração. Não há publicação de imagens nem deploy automático. O arquivo preparado localmente só começa a executar após ser enviado ao GitHub.
+Não é necessário cadastrar secrets: o job Docker usa `.env.example` com valores locais de demonstração. Após os quatro jobs passarem na `main`, o job CD publica as imagens usando o `GITHUB_TOKEN` temporário com `packages: write`. A implantação é iniciada por comando. Veja [o procedimento completo de entrega](docs/CI-CD.md).
 
 Para o vídeo, mostre um commit enviado, a execução em Actions e um job com a saída dos testes. Explique que o CI verifica automaticamente se a alteração continua compilando, passando nos testes e gerando imagens.
 
@@ -719,4 +721,4 @@ Referências: [setup-node](https://github.com/actions/setup-node), [setup-python
 
 ## Próxima etapa
 
-Enviar o projeto a um repositório e acompanhar a primeira execução remota do CI. Preparar documentação/apresentação e avaliar Kubernetes conforme o tempo restante.
+Acompanhar a primeira publicação do CD, verificar o acesso aos pacotes e testar a entrega sem build. Preparar documentação das APIs, validação com clone limpo e apresentação; avaliar Kubernetes conforme o tempo restante.

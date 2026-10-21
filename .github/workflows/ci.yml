@@ -1,4 +1,4 @@
-name: CI Biblioteca
+name: CI/CD Biblioteca
 
 on:
   push:
@@ -88,5 +88,51 @@ jobs:
         run: |
           docker compose config --quiet
           docker compose -f compose.yaml -f compose.dev.yaml config --quiet
+          IMAGE_TAG=validation docker compose -f compose.yaml -f compose.release.yaml config --quiet
       - name: Construir imagens da API, Python e frontend
         run: docker compose build api notifications web
+
+  delivery:
+    name: CD — Publicar imagens no GHCR
+    needs: [api, web, notifications, containers]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+      REPOSITORY: ${{ github.repository }}
+      REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REGISTRY_USER: ${{ github.actor }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Autenticar no GitHub Container Registry
+        run: printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+      - name: Construir imagens versionadas do mesmo commit
+        run: |
+          set -euo pipefail
+          registry="ghcr.io/${REPOSITORY,,}"
+          for service in api notifications web; do
+            docker build --label "org.opencontainers.image.source=https://github.com/$REPOSITORY" --label "org.opencontainers.image.revision=$IMAGE_TAG" -t "$registry/$service:$IMAGE_TAG" "./$service"
+          done
+      - name: Publicar as três imagens aprovadas
+        run: |
+          set -euo pipefail
+          registry="ghcr.io/${REPOSITORY,,}"
+          for service in api notifications web; do
+            docker push "$registry/$service:$IMAGE_TAG"
+          done
+          {
+            echo '## Entrega publicada'
+            echo "Commit: $IMAGE_TAG"
+            for service in api notifications web; do
+              echo "- $registry/$service:$IMAGE_TAG"
+            done
+            echo ''
+            echo 'Use este commit em IMAGE_TAG com compose.release.yaml. Implantação local por comando, sem build.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Encerrar autenticação no registry
+        if: always()
+        run: docker logout ghcr.io
