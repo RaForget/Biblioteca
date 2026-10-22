@@ -2,6 +2,8 @@
 
 Projeto próprio de empréstimo de livros. TypeScript e Python se comunicam por HTTP e eventos Kafka. O material Pizza Express permanece somente como referência da disciplina.
 
+> **Quer só instalar e rodar?** Vá direto ao [Início rápido](#início-rápido--executar-e-avaliar-o-projeto): basta Git e Docker Desktop. Os documentos abaixo são complementares.
+
 Veja os [diagramas C4 e o percurso de uma chamada](docs/ARQUITETURA.md): contexto, containers, componentes da API e sequência do empréstimo.
 
 A entrega contínua publica imagens versionadas no GHCR após o CI passar na `main`. Veja [CI/CD e execução sem build](docs/CI-CD.md), incluindo o roteiro para demonstrar o processo e as permissões dos pacotes.
@@ -78,7 +80,7 @@ Serviços com healthcheck devem aparecer como `healthy`. Serviços auxiliares co
 
 O [teste em clone e volumes novos](docs/VALIDACAO-ENTREGA.md) comprovou a execução pela entrega do GHCR, sem dependências de aplicação instaladas no host. Foi realizado no mesmo computador de desenvolvimento, em ambiente isolado; não é uma validação em um segundo computador físico.
 
-## Inicialização da etapa atual — desenvolvimento com Watch
+## Modo desenvolvimento — atualização automática com Watch
 
 Para editar código, use Docker Compose 5.3.1 ou compatível com `initial_sync`. Encerre qualquer `npm run dev` antigo do backend/frontend para liberar 3001/5173 e execute na pasta do projeto:
 
