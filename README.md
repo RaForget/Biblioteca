@@ -2,7 +2,7 @@
 
 Aplicação de empréstimo de livros desenvolvida em TypeScript e Python, com comunicação por HTTP e eventos Kafka.
 
-> **Quer só instalar e rodar?** Vá direto ao [Início rápido](#início-rápido--executar-e-avaliar-o-projeto): basta Git e Docker Desktop. Os documentos abaixo são complementares.
+> **Quer só instalar e rodar?** Siga o [Início rápido](#início-rápido--executar-e-avaliar-o-projeto): você precisa de Git, Docker com Compose e acesso à internet no primeiro build. Os demais documentos são complementares.
 
 Veja os [diagramas C4 e o percurso de uma chamada](docs/ARQUITETURA.md): contexto, containers, componentes da API e sequência do empréstimo.
 
